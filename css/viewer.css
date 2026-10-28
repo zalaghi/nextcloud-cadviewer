@@ -1,0 +1,6 @@
+.cadviewer-dialog { position: fixed; inset: 0; margin: auto; width: 96vw; max-width: none; height: 94vh; max-height: none; padding: 0; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-main-background); color: var(--color-main-text); overflow: hidden; }
+.cadviewer-dialog::backdrop { background: #0009; }
+.cadviewer-dialog header { height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--color-border); }
+.cadviewer-dialog header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cadviewer-dialog iframe { display: block; width: 100%; height: calc(100% - 54px); border: 0; background: white; }
+.cadviewer-status { position: absolute; z-index: 2; top: 65px; left: 50%; transform: translateX(-50%); padding: 12px 20px; border-radius: 8px; background: var(--color-main-background); color: var(--color-main-text); box-shadow: 0 2px 12px #0003; max-width: 80%; text-align: center; }

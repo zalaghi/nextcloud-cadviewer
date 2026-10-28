@@ -1,0 +1,43 @@
+{
+  "name": "nextcloud-cadviewer",
+  "description": "Open-source DWG and DXF viewing inside Nextcloud Files, including legacy Persian SHX text.",
+  "version": "0.1.0-alpha.1",
+  "contributors": [
+    "Kevin WAMBA <kevin.wamba@kevmax.com>",
+    "CADViewer <casper.harnung@tailormade.com>"
+  ],
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test:nextcloud": "bash scripts/test-nextcloud.sh"
+  },
+  "dependencies": {
+    "@nextcloud/files": "4.1.1"
+  },
+  "devDependencies": {
+    "webpack": "5.112.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zalaghi/nextcloud-cadviewer.git"
+  },
+  "keywords": [
+    "nextcloud",
+    "cad",
+    "dwg",
+    "dxf",
+    "shx",
+    "libredwg",
+    "ezdxf"
+  ],
+  "author": "",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/zalaghi/nextcloud-cadviewer/issues"
+  },
+  "homepage": "https://github.com/zalaghi/nextcloud-cadviewer#readme",
+  "engines": {
+    "node": "^24.0.0 || >=26.0.0",
+    "npm": ">=10"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "image": "REPLACE_WITH_THE_BUILT_64_CHARACTER_IMAGE_ID",
+  "fonts": "/srv/cadviewer/fonts",
+  "scratch": "/srv/cadviewer/jobs"
+}

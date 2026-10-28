@@ -1,0 +1,9 @@
+/.local/
+/node_modules/
+__pycache__/
+*.pyc
+.env
+*.key
+
+*.swp
+*.swo
