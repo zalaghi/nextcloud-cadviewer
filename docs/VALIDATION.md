@@ -13,14 +13,14 @@ This record describes the current free implementation. It does not establish pro
 | Nextcloud access | PASS | Own-file access, denied other-user files, read-only share, revocation during conversion, changed-file detection, missing session |
 | Request/security boundaries | PASS | Native CSRF/admin middleware, SVG active/external content rejection, asset traversal/symlink/size checks, bounded formats/layouts, no eval or drawing network access |
 | Core integrity | PASS | 3,793 core/lib/config/.htaccess files identical before enable and after use/disable; browser installation separately matched after use |
-| Worker unit/protocol | PASS | 10 tests: legacy glyph mapping, Unicode style preservation, real multi-layout render metadata, container restrictions, authorization, format/layout/input-size/transfer-encoding checks |
-| Font staging | PASS | 4 tests; originals protected, invalid files/symlinks/collisions rejected; no AutoLISP execution |
+| Worker unit/protocol | PASS | 14 tests, including block reuse, missing-font substitution and safe conversion error responses; original coverage: legacy glyph mapping, Unicode style preservation, real multi-layout render metadata, container restrictions, authorization, format/layout/input-size/transfer-encoding checks |
+| Font staging | PASS | 6 tests; mislabeled TrueType and corrected-name collisions covered; originals protected, invalid files/symlinks/collisions rejected; no AutoLISP execution |
 | Original inputs | PASS | All 20 supplied SHX hashes and both public fixture hashes unchanged |
 | npm advisories | 0 reported | npm audit for the current lockfile; not a complete application security audit |
 | Python advisories | 0 reported | OSV query for ezdxf 1.4.5, fonttools 4.68.0, numpy 2.5.4, Pillow 13.0.0, pyparsing 3.3.3 and typing_extensions 4.16.0 on the review date |
-| Production AIO deployment | PENDING | No app or worker deployed; no production core/image/config modifications |
+| AIO app and worker installation | PASS | Native app upgrade, persistent custom-apps directory, rootless worker with enforced limits; 3,795 core/lib/config/.htaccess files unchanged |
 
-The browser test uses an authenticated fixture service returning independently rendered outputs. The actual rootless parser container was tested separately. The live deployed Nextcloud → gateway → parser path, final host network controls, and unattended service operation are **not yet accepted**. The gateway's request handling was exercised with a local stub conversion in an isolated loopback namespace; this is not a claim of a production penetration test.
+The disposable browser test uses an authenticated fixture service returning independently rendered outputs. Separately, deployed DXF and the large private DWG below passed actual authenticated Files sessions through the deployed gateway and rootless parser. The rootless parser was checked on the AIO host with enforced memory/CPU/process limits, read-only filesystem and no network route. The independent OpenRC service is enabled; a host-reboot acceptance test has not been performed. The gateway's protocol tests use a local stub conversion in an isolated loopback namespace; this is not a claim of a production penetration test.
 
 ## Persian drawing evidence
 
@@ -40,7 +40,7 @@ The verified NASKHD fingerprint is:
 
 For this font only, legacy Unicode code-page artifacts are converted back to SHX byte glyph numbers using Windows-1256, then Windows-1252 fallback. This includes glyphs such as U+0178 and U+017E that previously rendered as boxes. The transformation happens in memory; no drawing, original font, locale or Nextcloud data is rewritten. Text order and CAD rotation/mirroring remain with the drawing/renderer. TTF/other font styles are untouched. Visual inspection confirmed improvement and readable Persian labels; no pixel-perfect comparison with an AutoCAD reference has been completed.
 
-Missing fonts reported in the public samples: DXF `arial.ttf`, `romansp.shx`, `romant.shx`; DWG `naskh-h.shx`, `swissl.ttf`. Some warnings may describe unused styles. User-supplied SHX files and downloaded drawings are private test inputs and are excluded from the app/worker distribution. No private customer drawing is included in this validation record.
+Earlier, before the expanded private font pack and alpha 2 warning filtering, the public samples reported: DXF `arial.ttf`, `romansp.shx`, `romant.shx`; DWG `naskh-h.shx`, `swissl.ttf`. Those earlier warnings could include unused styles. Alpha 2 reports styles used by rendered text only. User-supplied SHX files and downloaded drawings are private test inputs and are excluded from the app/worker distribution. No private customer drawing is included in this validation record.
 
 ## Runtime security and operational boundary
 
@@ -58,3 +58,19 @@ bash scripts/run-browser-check.sh
 ```
 
 The private font directory and public fixtures must be staged under ignored `.local/` before font/fixture checks. Test scripts intentionally use dummy accounts and isolated, disposable installations. Local logs and screenshots are under `.local/evidence/`; they are excluded from the distributed app. The browser uses replayed actual engine output as described above.
+
+## Alpha 2 regression evidence
+
+A private 12.1 MiB electrical drawing exposed a false font diagnosis: its 225,308 input records exceeded the former 200,000-record limit. Naive block expansion would generate about 3.9 million primitives. Shared block definitions and adjacent-stroke batching produced roughly 28 MiB of SVG with about 28,000 XML elements, 426 definitions and 1,236 references. The release parser completed within its unchanged 2 GiB, 2 CPU, 64-process and 60-CPU-second limits; an isolated host run took 43.6 seconds. This private drawing and the supplied fonts are not redistributed.
+
+A synthetic nested-block fixture compares optimized and ordinary ezdxf rendering, including translation, rotation, colors, layers, paint order and tiny elevation differences. Bounds match, all local references resolve, and the raster comparison had zero pixel difference. This is targeted optimization evidence, not a comparison of the private drawing against AutoCAD.
+
+The large SVG passed the real PHP sanitizer at a 256 MiB PHP memory limit; every path and block reference was retained. Application response tests verify that negotiated gzip reproduces the sanitized vector content exactly, and that `gzip;q=0` is respected. Compression applies only to this app's response.
+
+The same drawing opened visibly in an authenticated Files session on the installed Nextcloud 35.0.2 / PHP 8.4.27 AIO instance. The native app-to-gateway conversion and sanitization took 46.4 seconds in a timed check. Browser zoom and fit worked on the resulting vector drawing. The app and frame both accept the bounded 32 MiB result; content-hashed frame URLs prevent an older cached 16 MiB limit from silently rejecting it. The AIO container/image and 3,795 protected core/config files remained unchanged.
+
+Nine requested font names remained substituted in this drawing: `ARIALN.TTF`, `ARLRDBD.TTF`, `MAIAN.TTF`, `SAS_____.PFB`, `romanc__.ttf`, `romantic.ttf`, `swissl.ttf`, `tahoma.ttf`, and `tahomabd.ttf`. They are absent or unsupported in the provided collection. The drawing opens with a visible English warning; no claim of exact font fidelity is made.
+
+After the expanded pack was installed, both public samples were reopened through the live Files interface: the DXF displayed readable Persian text with no missing-font warning, and the architectural DWG reported only `swissl.ttf`. The viewer defaults to non-scaling one-pixel strokes to keep SHX lettering readable during zoom; Lineweights restores the renderer's stroke widths. The toggle and layers panel were checked in the live browser.
+
+The supplied mixed font pack was inspected without executing Lisp/ARX content. Recognized formats were staged privately; unsupported payloads were reported separately. An offline parser check loaded 563 staged font files, while 78 recognized files had unsupported BIGFONT or malformed font data. These counts describe that private test collection and do not claim universal font support. Missing/unsupported fonts remain visible as non-fatal fidelity warnings.

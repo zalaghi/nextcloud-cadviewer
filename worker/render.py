@@ -18,10 +18,11 @@ from ezdxf.addons.drawing import Frontend, RenderContext, layout, svg
 from ezdxf.addons.drawing.config import Configuration, BackgroundPolicy, ColorPolicy, ImagePolicy, LineweightPolicy
 from ezdxf.fonts import fonts
 from ezdxf.math import Vec3
+from blocks import InstancedFrontend, InstancedSVGBackend
 
 NASKHD_SHA256 = '2252d08c0d5bc27e5e636dc72529946c0dc8fe8fc5281ba91db2e22839d4696d'
 MAX_INPUT = 32 * 1024 * 1024
-MAX_SVG = 16 * 1024 * 1024
+MAX_SVG = 32 * 1024 * 1024
 
 
 def legacy_naskhd_glyphs(text):
@@ -52,14 +53,39 @@ def prepare_fonts(doc, directory):
     by_name = {p.name.casefold(): p for p in directory.iterdir() if p.is_file() and not p.is_symlink()}
     known_font = by_name.get('naskhd.shx')
     legacy_available = bool(known_font and hashlib.sha256(known_font.read_bytes()).hexdigest() == NASKHD_SHA256)
-    legacy_styles, missing = set(), set()
+    legacy_styles, missing = set(), {}
+    checked = {}
     for style in doc.styles:
         # Font references can never become arbitrary server-side paths.
         name = style.dxf.font.replace('\\', '/').split('/')[-1]
+        # CAD files commonly omit .shx. Resolve only an actual installed file,
+        # case-insensitively; never guess a different Persian font family.
+        if name and not Path(name).suffix and fonts.font_manager.has_font(name + '.shx'):
+            name += '.shx'
         style.dxf.font = name
         style.dxf.bigfont = style.dxf.bigfont.replace('\\', '/').split('/')[-1]
-        if name and not fonts.font_manager.has_font(name):
-            missing.add(name[:100])
+        if name:
+            key = name.casefold()
+            if key not in checked:
+                usable = fonts.font_manager.has_font(name)
+                if usable:
+                    try:
+                        if Path(name).suffix.lower() in ('.shx', '.shp'):
+                            fonts.font_manager.get_shapefile_glyph_cache(name)
+                        else:
+                            fonts.font_manager.get_ttf_font(name)
+                    except MemoryError:
+                        raise
+                    except Exception:
+                        usable = False
+                checked[key] = usable
+            if not checked[key]:
+                missing[style.dxf.name.casefold()] = [name[:100]]
+                style.dxf.font = 'LiberationSans-Regular.ttf'
+        if style.dxf.bigfont:
+            # ezdxf does not render AutoCAD BIGFONT. Make this explicit instead
+            # of silently claiming exact font support.
+            missing.setdefault(style.dxf.name.casefold(), []).append(style.dxf.bigfont[:100])
         if legacy_available and name.casefold() == 'naskhd.shx':
             legacy_styles.add(style.dxf.name.casefold())
     changed = 0
@@ -80,7 +106,7 @@ def prepare_fonts(doc, directory):
                 entity.text = mapped
             else:
                 entity.dxf.text = mapped
-    return sorted(missing), changed
+    return missing, changed
 
 
 class LayeredRenderBackend(svg.SVGRenderBackend):
@@ -95,6 +121,19 @@ class LayeredRenderBackend(svg.SVGRenderBackend):
         before = len(self.entities)
         super().add_strokes(d, properties)
         self.mark(before, properties)
+        # Join only adjacent opaque strokes with identical appearance/layer.
+        # Separate M commands preserve subpaths and paint order; limiting the
+        # attribute size also keeps XML parsing bounded for large plans.
+        if (len(self.entities) > before and before > 0
+                and (len(properties.color) == 7 or properties.color[7:].lower() == 'ff')):
+            previous, current = self.entities[-2:]
+            if (previous.tag == current.tag == 'path'
+                    and previous.get('class') == current.get('class')
+                    and previous.get('data-layer') == current.get('data-layer')
+                    and len(previous.get('d', '')) + len(d) < 64000):
+                previous.set('d', previous.get('d') + ' ' + d)
+                previous.attrib.pop('data-entity', None)
+                self.entities.remove(current)
 
     def add_filling(self, d, properties):
         before = len(self.entities)
@@ -102,7 +141,7 @@ class LayeredRenderBackend(svg.SVGRenderBackend):
         self.mark(before, properties)
 
 
-class LayeredSVGBackend(svg.SVGBackend):
+class LayeredSVGBackend(InstancedSVGBackend):
     @staticmethod
     def make_backend(page, settings):
         return LayeredRenderBackend(page, settings)
@@ -124,7 +163,7 @@ def render(drawing, font_directory, layout_index=0, dwg2dxf='/usr/local/bin/dwg2
     else:
         raise ValueError('Only DWG and DXF are supported')
     doc = ezdxf.readfile(source)
-    if len(doc.entitydb) > 200000:
+    if len(doc.entitydb) > 500000:
         raise ValueError('Drawing exceeds entity limit')
     if len(doc.layers) > 2000:
         raise ValueError('Drawing exceeds layer limit')
@@ -138,7 +177,8 @@ def render(drawing, font_directory, layout_index=0, dwg2dxf='/usr/local/bin/dwg2
     configuration = Configuration(background_policy=BackgroundPolicy.WHITE,
         color_policy=ColorPolicy.COLOR, image_policy=ImagePolicy.IGNORE,
         lineweight_policy=LineweightPolicy.RELATIVE)
-    Frontend(context, backend, config=configuration).draw_layout(selected, finalize=True)
+    frontend = InstancedFrontend(context, backend, config=configuration)
+    frontend.draw_layout(selected, finalize=True)
     root = backend.get_xml_root_element(layout.Page(0, 0), settings=layout.Settings(max_stroke_width=0.002, min_stroke_width=0.1))
     if root.get('viewBox') is None:
         raise ValueError('The selected layout contains no visible geometry')
@@ -151,7 +191,9 @@ def render(drawing, font_directory, layout_index=0, dwg2dxf='/usr/local/bin/dwg2
     info = {'layouts': names, 'layout': layout_index, 'layers': layers,
             'unitsPerSvgUnit': 1 / scale,
             'unit': unit_names.get(doc.units, 'drawing units') if layout_index == 0 else 'layout units',
-            'missingFonts': missing, 'legacyTextEntities': mapped,
+            'missingFonts': sorted({name for style in frontend.used_styles for name in missing.get(style, [])}),
+            'legacyTextEntities': mapped,
+            'blockDefinitions': len(backend.blocks), 'blockReferences': backend.instance_count,
             'renderer': 'ezdxf ' + ezdxf.__version__}
     ET.SubElement(root, 'metadata', id='cadviewer-info').text = json.dumps(info, ensure_ascii=False, allow_nan=False)
     result = ET.tostring(root, encoding='utf-8', xml_declaration=True)
@@ -166,7 +208,19 @@ def main():
     parser.add_argument('--fonts', type=Path, default=Path('/fonts'))
     parser.add_argument('--layout', type=int, default=0)
     args = parser.parse_args()
-    sys.stdout.buffer.write(render(args.drawing, args.fonts, args.layout))
+    try:
+        result = render(args.drawing, args.fonts, args.layout)
+    except subprocess.TimeoutExpired:
+        sys.exit(24)
+    except MemoryError:
+        sys.exit(23)
+    except ValueError as error:
+        if 'no visible geometry' in str(error):
+            sys.exit(22)
+        sys.exit(20 if 'limit' in str(error) else 21)
+    except Exception:
+        sys.exit(21)
+    sys.stdout.buffer.write(result)
 
 
 if __name__ == '__main__':

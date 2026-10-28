@@ -4,6 +4,7 @@ namespace OCA\CadviewerNextcloud\Controller;
 
 use OCA\CadviewerNextcloud\Service\AssetFile;
 use OCA\CadviewerNextcloud\Service\ConverterClient;
+use OCA\CadviewerNextcloud\Service\ConversionException;
 use OCA\CadviewerNextcloud\Service\DrawingAccess;
 use OCA\CadviewerNextcloud\Service\DrawingSvg;
 use OCA\CadviewerNextcloud\Service\ViewerSettings;
@@ -28,7 +29,7 @@ class ViewerController extends Controller {
     }
 
     #[NoAdminRequired]
-    public function preview(int $fileId, int $layoutIndex = 0): JSONResponse {
+    public function preview(int $fileId, int $layoutIndex = 0): JSONResponse|DataDisplayResponse {
         if ($layoutIndex < 0 || $layoutIndex > 31) {
             return $this->result(['message' => 'Invalid layout.'], 400);
         }
@@ -44,19 +45,47 @@ class ViewerController extends Controller {
                 || !hash_equals(hash('sha256', $content), hash('sha256', $this->files->read($current)))) {
                 return $this->result(['message' => 'The drawing changed. Please open it again.'], 409);
             }
-            return $this->result(['svg' => $drawing]);
+            return $this->drawingResult($drawing);
         } catch (NotFoundException | NotPermittedException $e) {
             return $this->result(['message' => 'Drawing unavailable or access denied.'], 404);
         } catch (\LengthException $e) {
             return $this->result(['message' => $e->getMessage()], 413);
+        } catch (ConversionException $e) {
+            return $this->result(['message' => $e->getMessage()], 422);
         } catch (\Throwable $e) {
-            return $this->result(['message' => 'CADViewer could not open this drawing. Check the conversion service and required fonts.'], 503);
+            return $this->result(['message' => 'CADViewer could not open this drawing. Please check the conversion service.'], 503);
         }
     }
 
     private function result(array $data, int $status = 200): JSONResponse {
         return new JSONResponse($data, $status, ['Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff']);
+    }
+
+    private function drawingResult(string $drawing): JSONResponse|DataDisplayResponse {
+        // Compress only this app's successful preview response. Native browser
+        // decoding avoids large transfers without changing Nextcloud/web-server
+        // configuration or the drawing's vector geometry.
+        $gzip = false;
+        foreach (explode(',', strtolower($this->request->getHeader('Accept-Encoding'))) as $encoding) {
+            if (preg_match('/^\s*gzip\s*(?:;\s*q=(0(?:\.\d+)?|1(?:\.0+)?))?\s*$/D', $encoding, $match)) {
+                $gzip = !isset($match[1]) || (float)$match[1] > 0;
+                break;
+            }
+        }
+        if (!$gzip || strlen($drawing) < 65536) {
+            return $this->result(['svg' => $drawing]);
+        }
+        $json = json_encode(['svg' => $drawing], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $compressed = gzencode($json, 4);
+        if ($compressed === false) {
+            throw new \RuntimeException('Preview compression failed.');
+        }
+        return new DataDisplayResponse($compressed, 200, [
+            'Content-Type' => 'application/json; charset=utf-8',
+            'Content-Encoding' => 'gzip', 'Vary' => 'Accept-Encoding',
+            'Cache-Control' => 'no-store, private', 'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     // This page contains only the shipped viewer, never user data or credentials.
@@ -67,11 +96,13 @@ class ViewerController extends Controller {
         $base = $this->url->linkToRouteAbsolute('cadviewer_nextcloud.viewer.asset', ['path' => 'viewer/frame.js']);
         $base = substr($base, 0, -strlen('viewer/frame.js'));
         $safe = htmlspecialchars($base, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $version = substr(hash('sha256', ($this->assets->read('viewer/frame.js')['content'] ?? '')
+            . ($this->assets->read('viewer/frame.css')['content'] ?? '')), 0, 16);
         $html = '<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8">'
             . '<meta name="referrer" content="no-referrer"><title>CADViewer</title>'
-            . '<link rel="stylesheet" href="' . $safe . 'viewer/frame.css">'
+            . '<link rel="stylesheet" href="' . $safe . 'viewer/frame.css?v=' . $version . '">'
             . '</head><body><main id="viewer"></main>'
-            . '<script src="' . $safe . 'viewer/frame.js"></script></body></html>';
+            . '<script src="' . $safe . 'viewer/frame.js?v=' . $version . '"></script></body></html>';
         $response = new DataDisplayResponse($html, 200, ['Content-Type' => 'text/html; charset=UTF-8',
             'Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer',
             'X-Content-Type-Options' => 'nosniff']);

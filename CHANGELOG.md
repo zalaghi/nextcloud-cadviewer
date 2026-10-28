@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0-alpha.2 — 2026-10-28
+
+- Reuse repeated block geometry in SVG while preserving paint order, resolved colors, layers and transforms.
+- Support larger drawings with bounded input/geometry limits and up to 32 MiB of SVG; retain 2 GiB/2 CPU/64-process parser isolation.
+- Resolve installed SHX names without extensions; substitute unavailable or malformed fonts without stopping the entire drawing.
+- Report only font limitations affecting rendered text. Identify mislabeled TrueType files in private font packs; report and exclude unsupported files.
+- Negotiate lossless gzip for large app preview responses, avoiding oversized browser transfers.
+- Match the browser's 32 MiB limit to the server, version frame assets by content, and suppress duplicate requests for the same open file.
+- Keep preview strokes thin while zooming so dense plans and SHX lettering stay readable; provide a Lineweights toggle.
+- Distinguish complexity, read/conversion, empty-layout and timeout failures from font warnings.
+- Add regression coverage for block geometry, font staging/resolution and safe worker errors.
+
 ## 0.1.0-alpha.1 — 2026-10-28
 
 Initial public implementation of CADViewer for Nextcloud, with app ID `cadviewer_nextcloud`.

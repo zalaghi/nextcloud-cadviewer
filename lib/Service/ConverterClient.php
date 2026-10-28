@@ -4,7 +4,7 @@ namespace OCA\CadviewerNextcloud\Service;
 
 /** Fixed administrator-selected service. No user URLs, redirects or parameters. */
 class ConverterClient {
-    public const MAX_SVG_BYTES = 16 * 1024 * 1024;
+    public const MAX_SVG_BYTES = 32 * 1024 * 1024;
     public function __construct(private ViewerSettings $settings) {}
 
     public function convert(string $drawing, string $extension, int $layoutIndex = 0): string {
@@ -46,11 +46,13 @@ class ConverterClient {
             unset($curl);
         }
         if ($status === 429 || $status === 503) {
-            throw new \RuntimeException('CADViewer is busy. Please try again shortly.');
+            throw ConversionException::fromCode('busy');
         }
         if ($success === false || $status !== 200 || $type !== 'image/svg+xml' || $body === '') {
             // Never disclose worker output, credentials, paths or cURL diagnostics.
-            throw new \RuntimeException('The drawing could not be converted. Contact your administrator.');
+            $error = strlen($body) <= 200 ? json_decode($body, true, 4) : null;
+            throw ConversionException::fromCode(is_array($error) && is_string($error['error'] ?? null)
+                ? $error['error'] : 'conversion_failed');
         }
         return $body;
     }

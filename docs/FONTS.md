@@ -6,9 +6,13 @@ The application interface stays English. Font handling changes only text inside 
 
 Install the font files referenced by your drawings in the worker's private font directory. Both SHX and TrueType fonts can be used by ezdxf. Font files are not included with this project because their redistribution rights vary. A free Liberation Sans fallback is included in the locally built image with its license; a fallback is not an exact replacement for a missing CAD font.
 
-The worker reports missing font names. Warnings may include unused text styles. Obtain the actual matching font from the drawing's author when fidelity matters. Do not rename an unrelated font to hide a warning.
+The worker substitutes a bundled font when a requested font is missing, malformed or unsupported. It reports affected fonts used by rendered text; unused style definitions do not produce warnings. Missing fonts do not, by themselves, stop the drawing from opening. Obtain the actual matching font from the drawing's author when fidelity matters. Do not rename an unrelated font to hide a warning.
 
-`scripts/prepare-persian-fonts.py SOURCE --stage NEW_DIRECTORY` checks SHX headers/hashes, detects conflicting case-insensitive names and creates byte-identical copies plus lowercase aliases. The destination must be new or empty. It rejects symlink inputs and never executes AutoLISP. Supply TTF fonts separately; the staging helper is specifically for SHX files.
+`scripts/prepare-persian-fonts.py SOURCE --stage NEW_DIRECTORY` identifies SHX 1.0/1.1, unifont/bigfont, TrueType, OpenType and font collections by their bytes. It checks size/hash/name collisions and creates byte-identical private copies plus lowercase aliases. A TrueType file incorrectly named `Arial.SHX` is staged as `Arial.ttf`; the original is unchanged. Extensionless drawing references such as `NASKHD` resolve to the actual installed `NASKHD.shx`.
+
+The destination must be new or empty. The default rejects unsupported files. For a mixed font pack, `--skip-invalid` explicitly excludes unsupported files and lists them in the private manifest; collisions and symlinks still fail. Lisp, ARX, executables and other non-font content are never loaded or executed. Identifying a header does not guarantee a complete font: the renderer validates requested fonts and falls back when they cannot be loaded.
+
+AutoCAD BIGFONT rendering is not supported by ezdxf; referenced bigfonts are reported as fidelity limitations. PostScript Type 1/PFB fonts are also not supported by this renderer. Installing more files cannot make unsupported encodings or formats exact. Never suppress a real substitution warning to imply exact fidelity.
 
 ## NASKHD / legacy KATEB-style text
 

@@ -9,10 +9,16 @@ export function supportsDrawing(node) {
 }
 
 export async function openDrawing(node) {
+    // A rapid repeated activation must not enqueue another expensive render.
+    if (currentDialog?.open && currentDialog.dataset.fileId === String(node.fileid)) {
+        currentDialog.focus()
+        return null
+    }
     if (currentDialog) currentDialog.close()
     const previousFocus = document.activeElement
     const dialog = document.createElement('dialog')
     currentDialog = dialog
+    dialog.dataset.fileId = String(node.fileid)
     dialog.className = 'cadviewer-dialog'
     dialog.lang = 'en'
     dialog.dir = 'ltr'
@@ -86,6 +92,7 @@ export async function openDrawing(node) {
             const result = await response.json()
             if (signal.aborted || id !== requestId) return
             if (!response.ok || typeof result.svg !== 'string') throw new Error(result.message || 'CADViewer could not open this drawing.')
+            status.textContent = ready ? 'Displaying drawing…' : 'Preparing viewer…'
             preview = { svg: result.svg, requestId: id }
             send()
         } catch (error) {

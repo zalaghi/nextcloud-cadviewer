@@ -1,7 +1,7 @@
 {
   "name": "nextcloud-cadviewer",
   "description": "Open-source DWG and DXF viewing inside Nextcloud Files, including legacy Persian SHX text.",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "contributors": [
     "Kevin WAMBA <kevin.wamba@kevmax.com>",
     "CADViewer <casper.harnung@tailormade.com>"

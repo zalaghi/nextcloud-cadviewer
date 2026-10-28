@@ -19,8 +19,14 @@ import tempfile
 import uuid
 
 MAX_INPUT = 32 * 1024 * 1024
-MAX_OUTPUT = 16 * 1024 * 1024
+MAX_OUTPUT = 32 * 1024 * 1024
 FORMATS = frozenset(('dwg', 'dxf'))
+
+
+class ConversionFailure(RuntimeError):
+    def __init__(self, kind):
+        super().__init__(kind)
+        self.kind = kind
 
 
 def validate_config(config):
@@ -83,8 +89,12 @@ def convert(config, content, extension, layout_index=0):
                     output.extend(chunk)
                     if len(output) > MAX_OUTPUT:
                         raise ValueError('Preview exceeds output limit')
-            if process.wait(timeout=max(0.1, deadline - time.monotonic())) != 0 or not output:
-                raise RuntimeError('Conversion failed')
+            code = process.wait(timeout=max(0.1, deadline - time.monotonic()))
+            if code != 0 or not output:
+                kind = {20: 'drawing_limit', 21: 'invalid_drawing', 22: 'empty_layout',
+                        23: 'resource_limit', 24: 'conversion_timeout',
+                        137: 'resource_limit', -9: 'resource_limit'}.get(code, 'conversion_failed')
+                raise ConversionFailure(kind)
             return bytes(output)
         finally:
             if process is not None and process.poll() is None:
@@ -153,8 +163,12 @@ class Gateway(http.server.BaseHTTPRequestHandler):
         signal.setitimer(signal.ITIMER_REAL, 0)
         try:
             output = convert(self.server.config, content, extension, layout_index)
+        except ConversionFailure as error:
+            return self.respond(422, json.dumps({'error': error.kind}).encode(), 'application/json')
+        except (TimeoutError, subprocess.TimeoutExpired):
+            return self.respond(504, b'{"error":"conversion_timeout"}', 'application/json')
         except (RuntimeError, ValueError, subprocess.SubprocessError, OSError):
-            return self.respond(422)
+            return self.respond(422, b'{"error":"conversion_failed"}', 'application/json')
         self.respond(200, output, 'image/svg+xml')
 
 
@@ -175,6 +189,8 @@ def main():
     def deadline(*_):
         raise TimeoutError('Request deadline')
     signal.signal(signal.SIGALRM, deadline)
+    # Run the conversion's finally cleanup when the private service is stopped.
+    signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(0)))
     server = http.server.HTTPServer((args.bind, args.port), Gateway)
     server.config, server.token = config, token
     server.serve_forever()

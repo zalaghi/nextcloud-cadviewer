@@ -9,6 +9,29 @@ spec.loader.exec_module(fonts)
 
 
 class FontPreparationTests(unittest.TestCase):
+    def test_misnamed_truetype_is_staged_by_actual_format(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'source'; source.mkdir()
+            data = b'\x00\x01\x00\x00' + bytes(20)
+            (source / 'ARIAL.SHX').write_bytes(data)
+            (source / 'script.shx').write_bytes(b'(princ "not a font")')
+            (source / 'new.shx').write_bytes(b'AutoCAD-86 shapes 1.1\r\nexample')
+            manifest = fonts.inspect_fonts(source, skip_invalid=True)
+            target = Path(directory) / 'out'
+            fonts.stage_fonts(source, target, manifest)
+            self.assertEqual((target / 'arial.ttf').read_bytes(), data)
+            self.assertFalse((target / 'ARIAL.SHX').exists())
+            self.assertEqual(len(manifest['rejected']), 1)
+            self.assertEqual(manifest['font_count'], 2)
+
+    def test_corrected_names_cannot_overwrite_a_different_font(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory)
+            (source / 'arial.shx').write_bytes(b'\x00\x01\x00\x00' + bytes(20))
+            (source / 'arial.ttf').write_bytes(b'\x00\x01\x00\x00' + bytes(21))
+            with self.assertRaises(ValueError):
+                fonts.inspect_fonts(source, skip_invalid=True)
+
     def test_preserves_bytes_and_bigfont_type_without_loading_lisp(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'source'

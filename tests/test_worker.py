@@ -17,6 +17,63 @@ import service
 import ezdxf
 
 class RenderingTests(unittest.TestCase):
+    def test_missing_invalid_and_extensionless_fonts(self):
+        doc = ezdxf.new()
+        doc.styles.new('Present', dxfattribs={'font': 'C:\\Fonts\\NASKHD'})
+        doc.styles.new('Absent', dxfattribs={'font': 'does-not-exist.shx'})
+        doc.styles.new('Unused', dxfattribs={'font': 'unused.shx'})
+        doc.modelspace().add_text('ABC 123', dxfattribs={'style': 'Absent', 'height': 2})
+        missing, _ = render.prepare_fonts(doc, Path('/fonts'))
+        self.assertNotIn('present', missing)
+        self.assertEqual(doc.styles.get('Present').dxf.font, 'NASKHD.shx')
+        self.assertEqual(doc.styles.get('Absent').dxf.font, 'LiberationSans-Regular.ttf')
+        # Test metadata from an unmodified source, not the in-memory substitutions.
+        doc.styles.get('Absent').dxf.font = 'does-not-exist.shx'
+        path = Path('/scratch/missing-font.dxf'); doc.saveas(path)
+        from xml.etree import ElementTree as ET
+        root = ET.fromstring(render.render(path, Path('/fonts')))
+        info = json.loads(root.find('{http://www.w3.org/2000/svg}metadata').text)
+        self.assertIn('does-not-exist.shx', info['missingFonts'])
+        self.assertNotIn('unused.shx', info['missingFonts'])
+
+    def test_repeated_blocks_keep_bounds_colors_layers_and_paint_order(self):
+        from blocks import InstancedFrontend
+        from ezdxf.addons.drawing import Frontend, RenderContext, svg, layout
+        from ezdxf.addons.drawing.config import Configuration, BackgroundPolicy, LineweightPolicy
+        from ezdxf.math import Vec2
+        doc = ezdxf.new()
+        block = doc.blocks.new('Repeated')
+        for n in range(8):
+            block.add_line((n, 0), (n, 10))
+        nested = doc.blocks.new('Nested')
+        for n in range(8):
+            nested.add_blockref('Repeated', (n * 12, 0))
+        m = doc.modelspace()
+        m.add_blockref('Nested', (0, 0), dxfattribs={'color': 1, 'layer': 'A'})
+        m.add_circle((50, 10), 15, dxfattribs={'color': 3})
+        m.add_blockref('Nested', (200, 30, -2e-15), dxfattribs={'color': 1, 'layer': 'A'})
+        m.add_blockref('Nested', (100, 100), dxfattribs={'color': 2, 'layer': 'B', 'rotation': 45})
+        config = Configuration(background_policy=BackgroundPolicy.WHITE, lineweight_policy=LineweightPolicy.RELATIVE)
+        optimized = render.LayeredSVGBackend()
+        reference = svg.SVGBackend()
+        InstancedFrontend(RenderContext(doc), optimized, config=config).draw_layout(m)
+        Frontend(RenderContext(doc), reference, config=config).draw_layout(m)
+        a, b = optimized.player().bbox(), reference.player().bbox()
+        self.assertTrue(a.extmin.isclose(b.extmin, abs_tol=1e-7))
+        self.assertTrue(a.extmax.isclose(b.extmax, abs_tol=1e-7))
+        self.assertLess(optimized.record_count, len(reference.records))
+        self.assertGreater(optimized.instance_count, 4)
+        settings = layout.Settings(max_stroke_width=0.002, min_stroke_width=0.1)
+        from xml.etree import ElementTree as ET
+        for name, backend in [('optimized', optimized), ('reference', reference)]:
+            root = backend.get_xml_root_element(layout.Page(0, 0), settings=settings)
+            Path('/scratch/' + name + '.svg').write_bytes(ET.tostring(root))
+        root = ET.parse('/scratch/optimized.svg').getroot()
+        ns = '{http://www.w3.org/2000/svg}'
+        self.assertGreater(len(root.findall('.//' + ns + 'use')), 4)
+        ids = {e.get('id') for e in root.iter() if e.get('id')}
+        self.assertTrue(all(e.get('href')[1:] in ids for e in root.findall('.//' + ns + 'use')))
+
     def test_known_legacy_glyph_indices(self):
         self.assertEqual(render.legacy_naskhd_glyphs('\u200c\u060c\u0642'), '\x9d\xa1\xde')
         self.assertEqual(render.legacy_naskhd_glyphs('ABC 123'), 'ABC 123')
@@ -61,7 +118,7 @@ class RenderingTests(unittest.TestCase):
         with self.assertRaises(ValueError): service.container_command(config,'dummy','/scratch/a','dwg',32)
 
 class GatewayTests(unittest.TestCase):
-    def request(self, headers, expected):
+    def request(self, headers, expected, failure=None):
         server=http.server.HTTPServer(('127.0.0.1',0),service.Gateway)
         server.token='d'*48;server.config={}
         result={}
@@ -69,12 +126,22 @@ class GatewayTests(unittest.TestCase):
             conn=http.client.HTTPConnection('127.0.0.1',server.server_port,timeout=3)
             conn.request('POST','/convert',body=b'CAD',headers=headers)
             response=conn.getresponse();result['status']=response.status;result['body']=response.read();conn.close()
-        with patch.object(service,'convert',return_value=b'<svg/>') as convert:
+        with patch.object(service,'convert',return_value=b'<svg/>',side_effect=failure) as convert:
             thread=threading.Thread(target=client);thread.start()
             server.handle_request();thread.join(timeout=5);server.server_close()
             self.assertEqual(result['status'],expected)
-            if expected==200: convert.assert_called_once_with({},b'CAD','dwg',2)
+            if failure:
+                self.assertEqual(json.loads(result['body'])['error'],
+                                 'drawing_limit' if expected == 422 else 'conversion_timeout')
+                self.assertNotIn(b'/private',result['body'])
+            elif expected==200: convert.assert_called_once_with({},b'CAD','dwg',2)
             else: convert.assert_not_called()
+    def test_drawing_limit_is_not_a_font_error(self):
+        self.request({'Authorization':'Bearer '+'d'*48,'X-CAD-Format':'dwg','X-CAD-Layout':'2'},
+                     422,service.ConversionFailure('drawing_limit'))
+    def test_timeout_has_a_safe_response(self):
+        self.request({'Authorization':'Bearer '+'d'*48,'X-CAD-Format':'dwg','X-CAD-Layout':'2'},
+                     504,TimeoutError('/private/internal/path'))
     def test_authorized(self): self.request({'Authorization':'Bearer '+'d'*48,'X-CAD-Format':'dwg','X-CAD-Layout':'2'},200)
     def test_unauthorized(self): self.request({'X-CAD-Format':'dwg'},401)
     def test_unsupported_format(self): self.request({'Authorization':'Bearer '+'d'*48,'X-CAD-Format':'dgn'},415)

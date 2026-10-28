@@ -1,6 +1,6 @@
 # Deployment boundary and procedure
 
-This alpha is built and tested locally; production deployment is pending. Its intended installation scope is only the app's own persistent `custom_apps/cadviewer_nextcloud` directory and a separate conversion service. Do not modify Nextcloud core, global configuration, global MIME mappings, `.htaccess`, AIO containers or AIO images.
+This alpha has been built and tested locally and installed on a Nextcloud AIO test deployment. See VALIDATION.md for the precise acceptance scope. Its intended installation scope is only the app's own persistent `custom_apps/cadviewer_nextcloud` directory and a separate conversion service. Do not modify Nextcloud core, global configuration, global MIME mappings, `.htaccess`, AIO containers or AIO images.
 
 ## Build inputs
 
@@ -21,13 +21,13 @@ python3 /srv/cadviewer/service.py \
   --bind PRIVATE_SERVICE_ADDRESS --port 8090
 ```
 
-Create the token as at least 32 random bytes encoded with URL-safe Base64 (43+ characters). The token is not an activation/license system. Bind to an isolated private address reachable only from Nextcloud, with a private firewall rule; use HTTPS if crossing an untrusted network. The HTTP gateway deliberately has no file-browser, upload-store, URL-fetch or administrative endpoint. One job is processed at a time. Each job accepts at most 32 MiB, returns at most 16 MiB, and has an 80-second deadline. The parser has no network, capabilities or persistent writable filesystem, and has 2 GiB memory, 2 CPUs, 64 processes and 768 MiB scratch limits.
+Create the token as at least 32 random bytes encoded with URL-safe Base64 (43+ characters). The token is not an activation/license system. Bind to an isolated private address reachable only from Nextcloud, with a private firewall rule; use HTTPS if crossing an untrusted network. The HTTP gateway deliberately has no file-browser, upload-store, URL-fetch or administrative endpoint. One job is processed at a time. Each job accepts at most 32 MiB, returns at most 32 MiB, and has an 80-second deadline. The parser has no network, capabilities or persistent writable filesystem, and has 2 GiB memory, 2 CPUs, 64 processes and 768 MiB scratch limits.
 
 Place matching fonts in the private font directory. `scripts/prepare-persian-fonts.py` can inspect and stage the user's SHX files into a new directory without altering originals. Never run supplied AutoLISP. Font redistribution rights are separate from the free app's license.
 
 ## Alpine / OpenRC hosts
 
-AIO's host operating system may use OpenRC instead of systemd. Install the worker runtime on the host or a separate worker machine, never inside the Nextcloud AIO container. Rootless Podman requires subordinate UID/GID ranges and cgroup v2. Use a dedicated service account, a delegated cgroup with an outer administrator-owned resource ceiling, and a private bind address. The supplied OpenRC example documents the service boundary; validate resource limits before enabling conversion. Do not use privileged parser containers or remove cgroup limits as a workaround.
+AIO's host operating system may use OpenRC instead of systemd. Install the worker runtime on the host or a separate worker machine, never inside the Nextcloud AIO container. Rootless Podman requires subordinate UID/GID ranges and cgroup v2. Use a dedicated service account, a delegated cgroup with an outer administrator-owned resource ceiling, and a private bind address. Configure an OpenRC service to prepare the delegated cgroup before dropping to the worker account. Fail startup if resource preparation or a required firewall rule fails. Validate resource limits before enabling conversion. Do not use privileged parser containers or remove cgroup limits as a workaround.
 
 ## Nextcloud app
 

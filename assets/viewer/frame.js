@@ -26,7 +26,16 @@
     const content = element('div', '', 'content')
     content.append(layersPanel, viewport)
     main.append(toolbar, content, status)
-    let drawing, fullBox, box, metadata, measuring = false, firstPoint, drag, requestId = 0
+    let drawing, fullBox, box, metadata, measuring = false, firstPoint, drag, requestId = 0, strokes = []
+    const applyLineweights = () => {
+        const enabled = viewport.classList.contains('lineweights')
+        // Inline styles also apply inside SVG <use> shadow trees. Ancestor CSS
+        // selectors alone do not reliably reach paths in repeated blocks.
+        for (const { path, width, effect } of strokes) {
+            path.style.strokeWidth = enabled ? width : '1px'
+            path.style.vectorEffect = enabled ? effect : 'non-scaling-stroke'
+        }
+    }
     const button = (title, action) => {
         const node = element('button', title)
         node.type = 'button'
@@ -57,6 +66,13 @@
         monochromeButton.setAttribute('aria-pressed', String(viewport.classList.contains('monochrome')))
     })
     monochromeButton.setAttribute('aria-pressed', 'false')
+    const lineweightsButton = button('Lineweights', () => {
+        viewport.classList.toggle('lineweights')
+        lineweightsButton.setAttribute('aria-pressed', String(viewport.classList.contains('lineweights')))
+        applyLineweights()
+    })
+    lineweightsButton.setAttribute('aria-pressed', 'false')
+    lineweightsButton.title = 'Show rendered lineweights. Off keeps strokes thin while zooming.'
     const measureButton = button('Measure', () => {
         measuring = !measuring
         firstPoint = null
@@ -136,7 +152,10 @@
             return
         }
         if (event.data.type !== 'cadviewer:load' || !Number.isSafeInteger(event.data.requestId) || event.data.requestId < requestId) return
-        if (typeof event.data.svg !== 'string' || event.data.svg.length > 16 * 1024 * 1024) return
+        if (typeof event.data.svg !== 'string' || event.data.svg.length > 32 * 1024 * 1024) {
+            notify('cadviewer:error', { requestId: event.data.requestId })
+            return
+        }
         requestId = event.data.requestId
         try {
             const parsed = new DOMParser().parseFromString(event.data.svg, 'image/svg+xml')
@@ -152,6 +171,10 @@
             drawing.removeAttribute('width'); drawing.removeAttribute('height')
             drawing.setAttribute('preserveAspectRatio', 'xMidYMid meet')
             viewport.replaceChildren(drawing)
+            strokes = Array.from(drawing.querySelectorAll('path'), path => ({
+                path, width: path.style.strokeWidth, effect: path.style.vectorEffect,
+            }))
+            applyLineweights()
             metadata = info; firstPoint = null; drag = null
             fit()
             layoutSelect.replaceChildren(...info.layouts.map((name, i) => {
@@ -172,7 +195,7 @@
                 row.append(check, element('span', name)); layersPanel.append(row)
             }
             const missing = Array.isArray(info.missingFonts) ? info.missingFonts.filter(f => typeof f === 'string').slice(0, 20) : []
-            status.textContent = missing.length ? `Some fonts are missing: ${missing.join(', ')}. Text may differ from the original.` : 'Drag to pan · Scroll to zoom · Double-click to fit'
+            status.textContent = missing.length ? `Drawing opened with substitute fonts: ${missing.join(', ')}. Text appearance may differ from the original.` : 'Drag to pan · Scroll to zoom · Double-click to fit'
             notify('cadviewer:loaded', { requestId })
         } catch { notify('cadviewer:error', { requestId }) }
     })

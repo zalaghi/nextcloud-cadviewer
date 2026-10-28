@@ -18,11 +18,12 @@ function verify(bool $condition, string $message): void {
 }
 class LabConverter extends ConverterClient {
     public int $calls = 0;
+    public ?string $fixture = null;
     public ?Closure $during = null;
     public function convert(string $drawing, string $extension, int $layoutIndex = 0): string {
         $this->calls++;
         if ($this->during) { ($this->during)(); }
-        return '<svg xmlns="http://www.w3.org/2000/svg"><path id="fixture" d="M0 0L10 10"/></svg>';
+        return $this->fixture ?? '<svg xmlns="http://www.w3.org/2000/svg"><path id="fixture" d="M0 0L10 10"/></svg>';
     }
 }
 $app = new \OCA\CadviewerNextcloud\AppInfo\Application();
@@ -54,6 +55,28 @@ verify($response->getHeaders()['Cache-Control'] === 'no-store, private', 'drawin
 verify(!str_contains($response->render(), '/scratch/'), 'drawing response contains no filesystem path');
 $converter->during = static function () use ($a) { $a->putContent('AC1021 changed during conversion'); };
 verify($controller->preview($a->getId())->getStatus() === 409, 'change during conversion discards preview');
+$converter->during = null;
+class EncodingRequest extends \OC\AppFramework\Http\Request {
+    public string $encoding = '';
+    public function getHeader(string $name): string { return strtolower($name) === 'accept-encoding' ? $this->encoding : ''; }
+}
+$encodedRequest = (new ReflectionClass(EncodingRequest::class))->newInstanceWithoutConstructor();
+$encodedRequest->encoding = 'br, gzip;q=0.8';
+$compressedController = new ViewerController($encodedRequest, $access, $converter, $svg,
+    $settings, new AssetFile(), Server::get(\OCP\IURLGenerator::class));
+$converter->fixture = '<svg xmlns="http://www.w3.org/2000/svg">' . str_repeat('<path d="M0 0L10 10"/>', 4000) . '</svg>';
+$compressed = $compressedController->preview($a->getId());
+verify(($compressed->getHeaders()['Content-Encoding'] ?? '') === 'gzip', 'large preview uses negotiated app-only compression');
+$decoded = json_decode(gzdecode($compressed->render()), true, 4, JSON_THROW_ON_ERROR);
+verify($decoded['svg'] === $svg->clean($converter->fixture), 'compressed preview preserves every vector byte after sanitization');
+$encodedRequest->encoding = 'gzip;q=0, identity';
+$plain = $compressedController->preview($a->getId());
+verify(!isset($plain->getHeaders()['Content-Encoding']), 'client refusal of gzip is respected');
+$converter->fixture = null;
+$converter->during = static function () { throw \OCA\CadviewerNextcloud\Service\ConversionException::fromCode('drawing_limit'); };
+$limited = $controller->preview($a->getId());
+verify($limited->getStatus() === 422 && str_contains($limited->render(), 'preview complexity'), 'drawing complexity is reported separately from missing fonts');
+verify(!str_contains(\OCA\CadviewerNextcloud\Service\ConversionException::fromCode('/private/token')->getMessage(), '/private'), 'unknown worker errors cannot expose internal data');
 $converter->during = null;
 $session->setUser($bob);
 verify($controller->preview($a->getId())->getStatus() === 404, 'switching users does not reuse previous access');

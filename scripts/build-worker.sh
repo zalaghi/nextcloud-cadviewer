@@ -68,7 +68,7 @@ cp "$font_file" "$engine/image/fonts/LiberationSans-Regular.ttf"
 cp "$font_license" "$engine/image/licenses/Liberation-LICENSE"
 cp "$engine/runtime/dwg2dxf" "$engine/image/"
 cp "$engine/runtime/LibreDWG-COPYING" "$engine/image/licenses/"
-cp "$engine/libredwg-0.14.tar.xz" worker/render.py "$engine/image/"
+cp "$engine/libredwg-0.14.tar.xz" worker/render.py worker/blocks.py "$engine/image/"
 cp COPYING "$engine/image/licenses/CADViewer-COPYING"
 systemd-run --user --scope --quiet -p MemoryMax=2G -p TasksMax=64 -p CPUQuota=200% \
 timeout 180 podman build --network=none --pull=never --layers=false --memory=2g \

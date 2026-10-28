@@ -3,6 +3,7 @@ FROM docker.io/library/python@sha256:cd89c30eda26ee911a4611b18680086e0ea42e6f5f8
 COPY site/ /opt/python/
 COPY dwg2dxf /usr/local/bin/dwg2dxf
 COPY render.py /opt/cadviewer/render.py
+COPY blocks.py /opt/cadviewer/blocks.py
 COPY fonts/ /usr/share/fonts/cadviewer/
 COPY licenses/ /usr/share/licenses/cadviewer/
 COPY libredwg-0.14.tar.xz /usr/share/cadviewer/source/libredwg-0.14.tar.xz

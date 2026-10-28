@@ -13,7 +13,7 @@ Install the drawing's SHX or TrueType fonts privately in the worker. Persian dra
 
 This development alpha requires an independently installed conversion worker. Review the included deployment and validation documentation before production use.
     ]]></description>
-    <version>0.1.0-alpha.1</version>
+    <version>0.1.0-alpha.2</version>
     <licence>agpl</licence>
     <author mail="casper.harnung@tailormade.com" homepage="https://cadviewer.com/">Casper Harnung</author>
     <author>Kevin Wamba</author>
