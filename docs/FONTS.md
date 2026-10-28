@@ -14,17 +14,19 @@ The destination must be new or empty. The default rejects unsupported files. For
 
 AutoCAD BIGFONT rendering is not supported by ezdxf; referenced bigfonts are reported as fidelity limitations. PostScript Type 1/PFB fonts are also not supported by this renderer. Installing more files cannot make unsupported encodings or formats exact. Never suppress a real substitution warning to imply exact fidelity.
 
-## NASKHD / legacy KATEB-style text
+## Legacy SHX / KATEB-style text
 
 Legacy Persian CAD workflows often store glyph indices rather than modern Unicode text and position or mirror that text in the CAD geometry. Reversing strings or applying a general RTL transformation can damage those drawings.
 
-This project recognizes one byte-identical `naskhd.shx` font by SHA-256:
+Old `AutoCAD-86 shapes 1.0/1.1` fonts whose glyph numbers are all within 0–255 can contain text that was decoded through Windows-1252 during CAD interchange. The renderer recovers a byte only when that byte's glyph actually exists and the original Unicode glyph does not. It also expands supported `%%nnn` decimal glyph references. Unicode SHX, TrueType, missing glyphs and mixed inline-font MTEXT are excluded. This repairs the inspected FARSIN and TRAFIC-B samples without choosing a font by its filename.
+
+Arabic Windows-1256 recovery is more narrowly scoped to one byte-identical `naskhd.shx` font identified by SHA-256:
 
 `2252d08c0d5bc27e5e636dc72529946c0dc8fe8fc5281ba91db2e22839d4696d`
 
-Only styles referencing that verified font receive the compatibility mapping. Unicode characters above byte range are mapped back through Windows-1256, then Windows-1252 where needed. Existing byte-range characters, text order, rotation and mirroring are preserved. The mapping affects an in-memory document only. Unicode/TTF and other SHX styles are left alone. Mixed inline-font MTEXT is skipped.
+Only styles referencing that verified font receive the additional Windows-1256 mapping. Existing byte-range characters and text order are preserved. Single-line text that omits its own direction inherits the Backwards/Upside Down flags saved in its text style; explicit entity flags, including zero, remain authoritative. MTEXT does not inherit these flags. This honors stored drawing settings without applying a general RTL heuristic. All adjustments affect an in-memory document only.
 
-This fixed missing-glyph boxes in the public NASKHD test sample. The exact authoring tool for every sample entity is not established, and this is not universal KATEB support. Different NASKHD variants, other legacy encodings, bigfonts and modern complex-text shaping require their own evidence and tests. Never expand a font mapping by guessing from its filename alone.
+The initial mapping fixed missing-glyph boxes in the public NASKHD sample. The alpha 3 checks additionally cover FARSIN labels, TRAFIC-B text, decimal glyph escapes and NASKHD style direction in a private electrical drawing. The exact authoring tool for every entity is not established, and this is not universal KATEB support. Different NASKHD variants, other legacy encodings, bigfonts and modern complex-text shaping require their own evidence and tests. Never expand a font mapping by guessing from its filename alone.
 
 ## Acceptance checklist
 

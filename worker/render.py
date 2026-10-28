@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -48,14 +49,51 @@ def legacy_naskhd_glyphs(text):
     return ''.join(result)
 
 
+def recover_byte_glyphs(text, glyphs, arabic_codepage=False):
+    """Recover existing byte glyphs, without reshaping or reversing text.
+
+    Only old 8-bit SHX fonts qualify. Unicode SHX/TTF and absent glyphs are
+    untouched. Arabic code-page recovery additionally requires the verified
+    NASKHD fingerprint; other fonts only recover Windows-1252 artifacts.
+    """
+    def numeric(match):
+        value = int(match[1])
+        return chr(value) if 0 <= value <= 255 and value in glyphs else match[0]
+    text = re.sub(r'%%(\d{3})(?!\d)', numeric, text)
+    result = []
+    for character in text:
+        if ord(character) > 255 and ord(character) not in glyphs:
+            for encoding in (('cp1256', 'cp1252') if arabic_codepage else ('cp1252',)):
+                try:
+                    value = character.encode(encoding)
+                except UnicodeEncodeError:
+                    continue
+                if len(value) == 1 and value[0] in glyphs:
+                    character = chr(value[0])
+                    break
+        result.append(character)
+    return ''.join(result)
+
+
+def byte_font_glyphs(path, glyphs):
+    if path is None or not glyphs or max(glyphs) > 255:
+        return None
+    with path.open('rb') as stream:
+        header = stream.read(24)
+    if header.startswith((b'AutoCAD-86 shapes 1.0', b'AutoCAD-86 shapes 1.1')):
+        return frozenset(glyphs)
+    return None
+
+
 def prepare_fonts(doc, directory):
     fonts.font_manager.build(folders=[str(directory), '/usr/share/fonts'], support_dirs=False)
     by_name = {p.name.casefold(): p for p in directory.iterdir() if p.is_file() and not p.is_symlink()}
     known_font = by_name.get('naskhd.shx')
     legacy_available = bool(known_font and hashlib.sha256(known_font.read_bytes()).hexdigest() == NASKHD_SHA256)
-    legacy_styles, missing = set(), {}
-    checked = {}
+    legacy_styles, missing = {}, {}
+    checked, byte_fonts, directions = {}, {}, {}
     for style in doc.styles:
+        directions[style.dxf.name.casefold()] = style.dxf.generation_flags & 6
         # Font references can never become arbitrary server-side paths.
         name = style.dxf.font.replace('\\', '/').split('/')[-1]
         # CAD files commonly omit .shx. Resolve only an actual installed file,
@@ -71,7 +109,10 @@ def prepare_fonts(doc, directory):
                 if usable:
                     try:
                         if Path(name).suffix.lower() in ('.shx', '.shp'):
-                            fonts.font_manager.get_shapefile_glyph_cache(name)
+                            cache = fonts.font_manager.get_shapefile_glyph_cache(name)
+                            glyphs = byte_font_glyphs(by_name.get(key), cache.font.shapes)
+                            if glyphs is not None:
+                                byte_fonts[key] = glyphs
                         else:
                             fonts.font_manager.get_ttf_font(name)
                     except MemoryError:
@@ -86,20 +127,28 @@ def prepare_fonts(doc, directory):
             # ezdxf does not render AutoCAD BIGFONT. Make this explicit instead
             # of silently claiming exact font support.
             missing.setdefault(style.dxf.name.casefold(), []).append(style.dxf.bigfont[:100])
-        if legacy_available and name.casefold() == 'naskhd.shx':
-            legacy_styles.add(style.dxf.name.casefold())
+        if name.casefold() in byte_fonts:
+            legacy_styles[style.dxf.name.casefold()] = (byte_fonts[name.casefold()],
+                legacy_available and name.casefold() == 'naskhd.shx')
     changed = 0
     for entity in doc.entitydb.values():
         if entity is None or not entity.is_alive:
             continue
         if entity.dxftype() not in ('TEXT', 'ATTRIB', 'ATTDEF', 'MTEXT'):
             continue
-        if entity.dxf.get('style', 'Standard').casefold() not in legacy_styles:
+        style_name = entity.dxf.get('style', 'Standard').casefold()
+        # TEXT/ATTRIB may omit their direction while STYLE stores Backwards or
+        # Upside Down. Preserve explicit entity overrides, including zero.
+        if (entity.dxftype() != 'MTEXT' and not entity.dxf.hasattr('text_generation_flag')
+                and directions.get(style_name)):
+            entity.dxf.text_generation_flag = directions[style_name]
+        if style_name not in legacy_styles:
             continue
         original = entity.text if entity.dxftype() == 'MTEXT' else entity.dxf.text
         if entity.dxftype() == 'MTEXT' and '\\f' in original.lower():
             continue  # Mixed inline fonts need a separate, explicit interpretation.
-        mapped = legacy_naskhd_glyphs(original)
+        glyphs, arabic_codepage = legacy_styles[style_name]
+        mapped = recover_byte_glyphs(original, glyphs, arabic_codepage)
         if mapped != original:
             changed += 1
             if entity.dxftype() == 'MTEXT':

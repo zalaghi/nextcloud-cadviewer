@@ -8,7 +8,7 @@ Open **DWG and DXF drawings directly in Nextcloud Files**, with an English inter
 
 **The entire application is free and open source.** No commercial SDK, paid activation, subscription, trial period or cloud conversion API is required. The project name is **CADViewer**. This is an independent project derived from the AGPL Nextcloud integration; it is not the commercial CADViewer SDK and is not affiliated with its vendor.
 
-> **Alpha software:** `0.1.0-alpha.2`. Local integration, access-control, browser and real drawing conversion checks pass. CAD format fidelity varies; validate important drawings against the original CAD application. This repository does not claim universal AutoCAD compatibility or a complete security audit.
+> **Alpha software:** `0.1.0-alpha.3`. Local integration, access-control, browser and real drawing conversion checks pass. CAD format fidelity varies; validate important drawings against the original CAD application. This repository does not claim universal AutoCAD compatibility or a complete security audit.
 
 ## Features
 
@@ -19,7 +19,7 @@ Open **DWG and DXF drawings directly in Nextcloud Files**, with an English inter
 - English interface throughout. Persian text support applies to the drawing, not the application language.
 - SHX/TrueType font lookup, extensionless-name resolution and non-fatal font substitution in a private worker directory.
 - Shared SVG block definitions keep repeated floor plans compact without flattening every copy.
-- Carefully scoped recovery of legacy NASKHD byte glyphs; original drawings and fonts are never rewritten.
+- Glyph-checked recovery of old 8-bit SHX text and saved text-style direction; original drawings and fonts are never rewritten.
 - Offline, unprivileged conversion jobs with explicit resource limits and an isolated browser frame.
 
 ## Compatibility

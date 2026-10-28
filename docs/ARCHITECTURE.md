@@ -23,7 +23,7 @@ For each drawing it invokes rootless Podman with a fresh job name, a read-only s
 
 The gateway drains output with a deadline and byte limit, removes the job container and deletes its temporary input. Cgroup limits must be verified on the deployment host. OpenRC/cgroupfs deployments can supply an explicitly delegated `cgroup_parent`; do not disable resource limits to make a deployment work.
 
-`worker/render.py` converts DWG with GNU LibreDWG, renders DXF with ezdxf's SVG backend, embeds bounded layout/layer/unit metadata and applies the fingerprinted legacy-font mapping described in FONTS.md. Images/external references are not fetched.
+`worker/render.py` converts DWG with GNU LibreDWG, renders DXF with ezdxf's SVG backend, embeds bounded layout/layer/unit metadata and applies the glyph-checked legacy-font recovery described in FONTS.md. Arabic code-page recovery remains fingerprint-scoped. Stored single-line text-style direction is inherited only when the entity omits its own flags. Images/external references are not fetched.
 
 `worker/blocks.py` shares translation-equivalent block geometry through local SVG definitions and references, preserving paint order. Cache keys include resolved layer/color/line properties and the block transform. Only normal +Z extrusion inserts are eligible; clipping, attributes and array inserts use the ordinary renderer. In this 2D projection insertion elevation does not affect XY output. Nested references use the same output transformation and a shared style table. Adjacent opaque strokes with the same style/layer may share a bounded path, preserving individual subpaths. Resource limits remain enforced even for drawings that cannot benefit from reuse.
 

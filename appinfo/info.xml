@@ -9,11 +9,11 @@ An open-source CAD viewer for Nextcloud Files. The English viewer supports zoom,
 
 Drawings are read through the current user's Nextcloud permissions and rendered in a separate offline container. The app does not modify Nextcloud core, global MIME mappings, .htaccess, or the AIO image.
 
-Install the drawing's SHX or TrueType fonts privately in the worker. Persian drawing text does not change the interface language. Legacy NASKHD byte-glyph handling is limited to a verified font fingerprint. Format and font fidelity must be checked against the original drawings. DWF, DGN, 3D solids, external references and public share previews are not supported.
+Install the drawing's SHX or TrueType fonts privately in the worker. Persian drawing text does not change the interface language. Byte recovery checks the actual legacy SHX format and glyph coverage; additional Arabic code-page handling is limited to a verified NASKHD fingerprint. Format and font fidelity must be checked against the original drawings. DWF, DGN, 3D solids, external references and public share previews are not supported.
 
 This development alpha requires an independently installed conversion worker. Review the included deployment and validation documentation before production use.
     ]]></description>
-    <version>0.1.0-alpha.2</version>
+    <version>0.1.0-alpha.3</version>
     <licence>agpl</licence>
     <author mail="casper.harnung@tailormade.com" homepage="https://cadviewer.com/">Casper Harnung</author>
     <author>Kevin Wamba</author>

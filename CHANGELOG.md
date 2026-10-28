@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.3 — 2026-10-28
+
+- Recover Windows-1252 byte glyphs and decimal `%%nnn` references only for verified old 8-bit SHX formats with the requested glyph present; preserve Unicode fonts and unknown glyphs.
+- Honor saved text-style Backwards/Upside Down settings when single-line text omits its own direction; retain explicit entity overrides and leave MTEXT direction unchanged.
+- Fix inspected FARSIN, TRAFIC-B and NASKHD title-block text that still displayed incorrectly after the drawing opened.
+- Add regression tests for Unicode exclusion, glyph coverage, numeric escapes, style inheritance and explicit overrides.
+
 ## 0.1.0-alpha.2 — 2026-10-28
 
 - Reuse repeated block geometry in SVG while preserving paint order, resolved colors, layers and transforms.

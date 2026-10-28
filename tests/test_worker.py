@@ -79,6 +79,48 @@ class RenderingTests(unittest.TestCase):
         self.assertEqual(render.legacy_naskhd_glyphs('ABC 123'), 'ABC 123')
         self.assertEqual(render.legacy_naskhd_glyphs('Ÿž'), '\x9f\x9e')
 
+    def test_byte_glyph_recovery_requires_existing_glyphs(self):
+        glyphs = {0x9f, 0x9e, 0xb1, 0xde}
+        self.assertEqual(render.recover_byte_glyphs('Ÿž %%177 %%999 %%1770', glyphs),
+                         '\x9f\x9e \xb1 %%999 %%1770')
+        self.assertEqual(render.recover_byte_glyphs('œ سلام', glyphs), 'œ سلام')
+        self.assertEqual(render.recover_byte_glyphs('Ÿ', glyphs | {ord('Ÿ')}), 'Ÿ')
+        self.assertEqual(render.recover_byte_glyphs('\u0642', glyphs), '\u0642')
+        self.assertEqual(render.recover_byte_glyphs('\u0642', glyphs, True), '\xde')
+
+    def test_unicode_shx_is_not_a_byte_font(self):
+        path = Path('/scratch/font-header.shx')
+        for header, glyphs in [(b'AutoCAD-86 unifont 1.0', {32, 65}),
+                               (b'AutoCAD-86 shapes 1.0', {32, 65, 0x627})]:
+            path.write_bytes(header)
+            self.assertIsNone(render.byte_font_glyphs(path, glyphs))
+        path.write_bytes(b'AutoCAD-86 shapes 1.1')
+        self.assertEqual(render.byte_font_glyphs(path, {32, 65}), frozenset({32, 65}))
+
+    def test_legacy_style_direction_and_explicit_overrides(self):
+        import shutil
+        directory = Path('/scratch/byte-fonts'); directory.mkdir(exist_ok=True)
+        shutil.copyfile('/fonts/naskhd.shx', directory / 'custom-legacy.shx')
+        doc = ezdxf.new()
+        doc.styles.new('Legacy', dxfattribs={'font': 'custom-legacy.shx', 'generation_flags': 2})
+        doc.styles.new('Unicode', dxfattribs={'font': 'LiberationSans-Regular.ttf'})
+        m = doc.modelspace()
+        inherited = m.add_text('Ÿž %%177', dxfattribs={'style': 'Legacy'})
+        explicit = m.add_text('ABC', dxfattribs={'style': 'Legacy', 'text_generation_flag': 0})
+        mirrored = m.add_text('ABC', dxfattribs={'style': 'Legacy', 'text_generation_flag': 4})
+        modern = m.add_text('Ÿž %%177 سلام', dxfattribs={'style': 'Unicode'})
+        multiline = m.add_mtext('Ÿž', dxfattribs={'style': 'Legacy'})
+        inline = m.add_mtext(r'{\fArial;Ÿž}', dxfattribs={'style': 'Legacy'})
+        render.prepare_fonts(doc, directory)
+        self.assertEqual(inherited.dxf.text, '\x9f\x9e \xb1')
+        self.assertEqual(inherited.dxf.text_generation_flag, 2)
+        self.assertEqual(explicit.dxf.text_generation_flag, 0)
+        self.assertEqual(mirrored.dxf.text_generation_flag, 4)
+        self.assertEqual(modern.dxf.text, 'Ÿž %%177 سلام')
+        self.assertEqual(multiline.text, '\x9f\x9e')
+        self.assertEqual(inline.text, r'{\fArial;Ÿž}')
+        self.assertFalse(multiline.dxf.hasattr('text_generation_flag'))
+
     def test_font_mapping_is_scoped(self):
         doc = ezdxf.new()
         doc.styles.new('Legacy', dxfattribs={'font':'C:\\Fonts\\naskhd.shx'})
