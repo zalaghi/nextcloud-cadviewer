@@ -11,8 +11,9 @@
 | pyparsing | 3.3.3 | MIT; https://github.com/pyparsing/pyparsing |
 | typing_extensions | 4.16.0 | PSF-2.0; https://github.com/python/typing_extensions |
 | @nextcloud/files | 4.1.1 | AGPL-3.0-or-later; https://github.com/nextcloud-libraries/nextcloud-files |
-| Liberation Sans fallback | supplied by build host | SIL Open Font License; copied with its installed copyright file |
+| Vazirmatn | 33.003, nine static weights | SIL OFL 1.1; https://github.com/rastikerdar/vazirmatn; original OFL.txt and AUTHORS.txt in fonts/vazirmatn/ |
+| Liberation Sans fallback | 2.1.5, Regular | SIL OFL 1.1; https://github.com/liberationfonts/liberation-fonts; original LICENSE in fonts/liberation/ |
 
-The worker image includes the exact LibreDWG source archive and license, the app license, the fallback font's notice, and installed Python distribution notices. The application includes the generated JavaScript bundle's license notices. Transitive JavaScript dependencies are recorded in package-lock.json. Python wheels are hash-locked in worker/requirements.lock.
+The worker image includes the exact LibreDWG source archive and license, the app license, the bundled fonts' notices and checksum manifest, and installed Python distribution notices. The application includes the generated JavaScript bundle's license notices. Transitive JavaScript dependencies are recorded in package-lock.json. Python wheels are hash-locked in worker/requirements.lock.
 
 Do not remove these notices when redistributing. No private SHX fonts, AutoLISP files, external drawings, proprietary SDK, or commercial converter binaries are shipped here. Host operating systems and OCI base images retain their own package licenses and update obligations.

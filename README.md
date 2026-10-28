@@ -8,7 +8,7 @@ Open **DWG and DXF drawings directly in Nextcloud Files**, with an English inter
 
 **The entire application is free and open source.** No commercial SDK, paid activation, subscription, trial period or cloud conversion API is required. The project name is **CADViewer**. This is an independent project derived from the AGPL Nextcloud integration; it is not the commercial CADViewer SDK and is not affiliated with its vendor.
 
-> **Alpha software:** `0.1.0-alpha.3`. Local integration, access-control, browser and real drawing conversion checks pass. CAD format fidelity varies; validate important drawings against the original CAD application. This repository does not claim universal AutoCAD compatibility or a complete security audit.
+> **Alpha software:** `0.1.0-alpha.4`. Local integration, access-control, browser and real drawing conversion checks pass. CAD format fidelity varies; validate important drawings against the original CAD application. This repository does not claim universal AutoCAD compatibility or a complete security audit.
 
 ## Features
 
@@ -18,6 +18,7 @@ Open **DWG and DXF drawings directly in Nextcloud Files**, with an English inter
 - Existing Nextcloud file permissions, including read-only shares; access is checked again after conversion.
 - English interface throughout. Persian text support applies to the drawing, not the application language.
 - SHX/TrueType font lookup, extensionless-name resolution and non-fatal font substitution in a private worker directory.
+- Bundled Vazirmatn in nine weights and Liberation Sans, with original licenses and verified checksums; optional private import for additional CAD fonts.
 - Shared SVG block definitions keep repeated floor plans compact without flattening every copy.
 - Glyph-checked recovery of old 8-bit SHX text and saved text-style direction; original drawings and fonts are never rewritten.
 - Offline, unprivileged conversion jobs with explicit resource limits and an isolated browser frame.
@@ -52,10 +53,10 @@ The worker receives one drawing and read-only fonts. It has no access to the Nex
 
 ## Installation
 
-Start with [the deployment guide](docs/DEPLOYMENT.md). The two components are:
+Follow the **[step-by-step installation guide for AIO and regular Nextcloud](docs/INSTALL.md)**. This is currently an administrator-installed alpha, not an App Store listing. The two components are:
 
-1. **Nextcloud app:** install the repository's app files in `custom_apps/cadviewer_nextcloud`, enable normally, and configure Administration → CADViewer.
-2. **Conversion worker:** build the pinned worker image, install the gateway under a dedicated unprivileged account, stage the required fonts privately, and configure a private endpoint ending in `/convert`.
+1. **Nextcloud app:** generate the clean app archive with `python3 scripts/package-app.py`, install it in an existing persistent app directory as `cadviewer_nextcloud`, enable normally, and configure Administration → CADViewer.
+2. **Conversion worker:** build the pinned worker image with bundled fonts, initialize the gateway under a dedicated unprivileged account, import additional drawing fonts privately if needed, and configure a private endpoint ending in `/convert`.
 
 Do not put the worker inside the AIO Nextcloud container. Do not mount a Docker or Podman socket into the parser. The guide includes OpenRC/Alpine considerations, resource limits, token handling, upgrades and rollback.
 
@@ -72,7 +73,7 @@ bash scripts/build-worker.sh
 
 Downloads come from official registries/releases. LibreDWG source and Python wheel hashes are pinned. Compilation and dependency installation run offline with bounded writable scratch. See [architecture](docs/ARCHITECTURE.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
-For fonts and Persian-specific behavior, read [drawing fonts](docs/FONTS.md). User fonts and public test drawings are not redistributed in this repository.
+For fonts and Persian-specific behavior, read [drawing fonts](docs/FONTS.md) and the [public font manifest](fonts/README.md). Private font packs and third-party test drawings are not redistributed in this repository.
 
 ## Testing and current evidence
 

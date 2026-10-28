@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "families": [
+    {
+      "id": "vazirmatn",
+      "version": "33.003",
+      "license": "OFL-1.1",
+      "source": "https://github.com/rastikerdar/vazirmatn/tree/83629f877e8f084cc07b47030b5d3a0ff06c76ec",
+      "upstream_commit": "83629f877e8f084cc07b47030b5d3a0ff06c76ec",
+      "files": [
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-Black.ttf",
+          "kind": "font",
+          "size_bytes": 123376,
+          "sha256": "df4e257be9de1574d11ba2970c69228a7db24174913ff7f776bbf00a9aa5dc1b"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-Bold.ttf",
+          "kind": "font",
+          "size_bytes": 123036,
+          "sha256": "f635fdbea28f265de395ba83b4b1570dcf2f58d13c65469e61903b1c2d2ae723"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-ExtraBold.ttf",
+          "kind": "font",
+          "size_bytes": 123324,
+          "sha256": "5181c2e436cf1d5cf1c5631821b43d81881dca040a12c9a442ef5dc0007001cf"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-ExtraLight.ttf",
+          "kind": "font",
+          "size_bytes": 123292,
+          "sha256": "2b04d18ff3960a3ffd04ef0e5ab8ad8d1efb935280de9277b008d0d66462489f"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-Light.ttf",
+          "kind": "font",
+          "size_bytes": 122920,
+          "sha256": "9ab4f094b861b7d4e318f01953b9771ddeb189d7c79bbb3989d5a95a4b07ff60"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-Medium.ttf",
+          "kind": "font",
+          "size_bytes": 122656,
+          "sha256": "b986623e4ddef10755e04be39f8ea7bcb1dc08bfe8dd0aa6af395736f256ad4a"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-Regular.ttf",
+          "kind": "font",
+          "size_bytes": 122752,
+          "sha256": "b69fd4c680b8f3f225feabcc655a2c585d97627b8f5f5c0f9985e894069f3a56"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-SemiBold.ttf",
+          "kind": "font",
+          "size_bytes": 122920,
+          "sha256": "3f239d8364c14ee32c46b6839fa197c28958358b82a9673d2c6acc8506d78bc5"
+        },
+        {
+          "path": "vazirmatn/ttf/Vazirmatn-Thin.ttf",
+          "kind": "font",
+          "size_bytes": 124232,
+          "sha256": "8bab0e05692e16bf6aef1a2fed32a45695f4a4f44bebcfed873b6ab1c9d32d2c"
+        },
+        {
+          "path": "vazirmatn/OFL.txt",
+          "kind": "notice",
+          "size_bytes": 4391,
+          "sha256": "17e355067c8284f47743a1ee3b1ef7ff684ff0601eda357f9353b10b3016ab31"
+        },
+        {
+          "path": "vazirmatn/AUTHORS.txt",
+          "kind": "notice",
+          "size_bytes": 339,
+          "sha256": "b57746a5f7002c0974c76c32af74079ff7ef1aaf8f35495e9409cfa1eb11e1ca"
+        }
+      ]
+    },
+    {
+      "id": "liberation",
+      "version": "2.1.5",
+      "license": "OFL-1.1",
+      "source": "https://github.com/liberationfonts/liberation-fonts/releases/tag/2.1.5",
+      "source_archive": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+      "source_archive_sha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+      "files": [
+        {
+          "path": "liberation/LiberationSans-Regular.ttf",
+          "kind": "font",
+          "size_bytes": 410712,
+          "sha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8"
+        },
+        {
+          "path": "liberation/LICENSE",
+          "kind": "notice",
+          "size_bytes": 4414,
+          "sha256": "93fed46019c38bbe566b479d22148e2e8a1e85ada614accb0211c37b2c61c19b"
+        }
+      ]
+    }
+  ]
+}

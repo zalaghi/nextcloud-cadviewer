@@ -1,12 +1,14 @@
 # Deployment boundary and procedure
 
+For concrete first-install commands, follow [INSTALL.md](INSTALL.md): source packaging, worker account/service, AIO, regular Nextcloud, settings and acceptance. This document explains the deployment boundary and host-specific requirements.
+
 This alpha has been built and tested locally and installed on a Nextcloud AIO test deployment. See VALIDATION.md for the precise acceptance scope. Its intended installation scope is only the app's own persistent `custom_apps/cadviewer_nextcloud` directory and a separate conversion service. Do not modify Nextcloud core, global configuration, global MIME mappings, `.htaccess`, AIO containers or AIO images.
 
 ## Build inputs
 
 Use Linux x86_64 with rootless Podman, bubblewrap, a systemd user session, Python 3.14, Node 24 and npm. `scripts/build-isolated.sh` accepts `CADVIEWER_NODE` for the Node executable. `scripts/build-worker.sh` fetches pinned official GCC/Python images, LibreDWG 0.14 with a verified SHA-256, and hash-locked binary Python wheels. Compilation and installation then run offline in bounded containers. It does not read user credentials or a live Nextcloud installation.
 
-Set `CADVIEWER_FALLBACK_FONT` and `CADVIEWER_FALLBACK_LICENSE` to an installed free Liberation Sans font and its copyright file if needed. Supplied Persian SHX fonts are never built into the image. The image contains the exact LibreDWG source archive, its GPL notice, the app notice and Python package notices.
+The build verifies and includes the repository's Vazirmatn 33.003 and Liberation Sans 2.1.5 fonts, their original OFL notices and the font manifest. It no longer needs a font installed on the build host. Supplied Persian SHX fonts are never built into the image. The image contains the exact LibreDWG source archive, its GPL notice, the app notice and Python package notices.
 
 ## Worker
 

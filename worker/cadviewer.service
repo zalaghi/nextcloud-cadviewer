@@ -1,0 +1,21 @@
+# User unit: install as the dedicated rootless Podman account, not as root.
+# Default paths created by scripts/init-worker.py; requires cgroup v2 delegation.
+[Unit]
+Description=CADViewer private conversion gateway
+
+[Service]
+Type=simple
+EnvironmentFile=%h/cadviewer/runtime.env
+ExecStart=/usr/bin/python3 %h/cadviewer/service.py --config %h/cadviewer/config.json --token-file %h/cadviewer/worker-token --bind ${CADVIEWER_BIND} --port ${CADVIEWER_PORT}
+WorkingDirectory=%h/cadviewer
+UMask=0077
+Delegate=yes
+MemoryMax=3G
+CPUQuota=200%
+TasksMax=128
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

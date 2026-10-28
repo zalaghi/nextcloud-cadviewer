@@ -1,4 +1,5 @@
 import importlib.util
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -18,8 +19,15 @@ class FontPreparationTests(unittest.TestCase):
             (source / 'new.shx').write_bytes(b'AutoCAD-86 shapes 1.1\r\nexample')
             manifest = fonts.inspect_fonts(source, skip_invalid=True)
             target = Path(directory) / 'out'
-            fonts.stage_fonts(source, target, manifest)
+            previous = os.umask(0o077)
+            try:
+                fonts.stage_fonts(source, target, manifest)
+            finally:
+                os.umask(previous)
             self.assertEqual((target / 'arial.ttf').read_bytes(), data)
+            self.assertEqual(target.stat().st_mode & 0o777, 0o755)
+            self.assertEqual((target / 'arial.ttf').stat().st_mode & 0o777, 0o644)
+            self.assertEqual((target / 'manifest.json').stat().st_mode & 0o777, 0o600)
             self.assertFalse((target / 'ARIAL.SHX').exists())
             self.assertEqual(len(manifest['rejected']), 1)
             self.assertEqual(manifest['font_count'], 2)

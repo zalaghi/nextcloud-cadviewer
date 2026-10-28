@@ -61,11 +61,14 @@ with tarfile.open(root/'site.tar') as t:
         if p.is_absolute() or '..' in p.parts or p.parts[0]!='site' or not(m.isdir() or m.isfile()): raise ValueError('Invalid dependency artifact')
     t.extractall(root/'image',filter='data')
 PY
-# Supply an installed free Liberation Sans font and its copyright notice.
-font_file=${CADVIEWER_FALLBACK_FONT:-/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf}
-font_license=${CADVIEWER_FALLBACK_LICENSE:-/usr/share/licenses/liberation-sans-fonts/LICENSE}
-cp "$font_file" "$engine/image/fonts/LiberationSans-Regular.ttf"
-cp "$font_license" "$engine/image/licenses/Liberation-LICENSE"
+# Only checksum-verified public fonts enter the distributable image.
+font_stage=$(mktemp -d "$engine/bundled-fonts.XXXXXX")
+trap 'rm -rf -- "$font_stage"' EXIT
+python3 scripts/prepare-bundled-fonts.py --stage "$font_stage"
+# Clear previous font layers so a reused local build cannot publish private fonts.
+rm -rf -- "$engine/image/fonts" "$engine/image/licenses"
+cp -R "$font_stage/fonts" "$engine/image/fonts"
+cp -R "$font_stage/licenses" "$engine/image/licenses"
 cp "$engine/runtime/dwg2dxf" "$engine/image/"
 cp "$engine/runtime/LibreDWG-COPYING" "$engine/image/licenses/"
 cp "$engine/libredwg-0.14.tar.xz" worker/render.py worker/blocks.py "$engine/image/"

@@ -4,7 +4,11 @@ The application interface stays English. Font handling changes only text inside 
 
 ## Supplying fonts
 
-Install the font files referenced by your drawings in the worker's private font directory. Both SHX and TrueType fonts can be used by ezdxf. Font files are not included with this project because their redistribution rights vary. A free Liberation Sans fallback is included in the locally built image with its license; a fallback is not an exact replacement for a missing CAD font.
+The public repository includes **Vazirmatn 33.003 in all nine static TrueType weights** and **Liberation Sans Regular 2.1.5**. Original files, OFL licenses, authorship and checksums are organized under [fonts/](../fonts/README.md). Every worker build verifies and installs them automatically. End users need no local font installation; the SVG contains drawing outlines.
+
+Use the original filename in a drawing style, for example `Vazirmatn-Regular.ttf` or `Vazirmatn-Bold.ttf`. Availability of a Unicode font does not by itself establish correct Persian/Arabic joining, bidirectional order or CAD layout fidelity. Vazirmatn is not a replacement for legacy KATEB/SHX glyph encodings. These are independent rendering concerns.
+
+Install additional font files referenced by drawings in the worker's private font directory. Both SHX and TrueType fonts can be used by ezdxf. Private font packs are not redistributed: many have no documented permission to publish them. Liberation Sans remains the existing fallback; it is not an exact replacement for a missing CAD font.
 
 The worker substitutes a bundled font when a requested font is missing, malformed or unsupported. It reports affected fonts used by rendered text; unused style definitions do not produce warnings. Missing fonts do not, by themselves, stop the drawing from opening. Obtain the actual matching font from the drawing's author when fidelity matters. Do not rename an unrelated font to hide a warning.
 
@@ -13,6 +17,18 @@ The worker substitutes a bundled font when a requested font is missing, malforme
 The destination must be new or empty. The default rejects unsupported files. For a mixed font pack, `--skip-invalid` explicitly excludes unsupported files and lists them in the private manifest; collisions and symlinks still fail. Lisp, ARX, executables and other non-font content are never loaded or executed. Identifying a header does not guarantee a complete font: the renderer validates requested fonts and falls back when they cannot be loaded.
 
 AutoCAD BIGFONT rendering is not supported by ezdxf; referenced bigfonts are reported as fidelity limitations. PostScript Type 1/PFB fonts are also not supported by this renderer. Installing more files cannot make unsupported encodings or formats exact. Never suppress a real substitution warning to imply exact fidelity.
+
+## Private import example
+
+Run as the dedicated worker account from the source checkout:
+
+```sh
+python3 scripts/prepare-persian-fonts.py /PATH/TO/SUPPLIED/FONTS \
+  --skip-invalid --stage "$HOME/cadviewer/fonts-next" \
+  > "$HOME/cadviewer/font-import-report.json"
+```
+
+Keep the collection under the private `~/cadviewer/` parent (mode 0700). Staged font directories/files are readable by the parser's mapped UID (0755/0644), while the import manifest is private (0600). The source is a single directory of fonts, not a recursive search. Review `rejected` and the staged manifest, preserve the old directory/config for rollback, set the absolute `fonts` path in `~/cadviewer/config.json` to the staged directory and restart the gateway using the host's service manager. Do not overwrite a live font directory piecemeal. The private manifest may contain private filenames and should not be committed to GitHub. Bundled fonts remain available from the image.
 
 ## Legacy SHX / KATEB-style text
 

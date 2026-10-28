@@ -9,7 +9,7 @@ timeout --foreground 900s podman run --rm --pull=never --name cadviewer-free-eng
   --ulimit fsize=536870912:536870912 --ulimit nofile=1024:1024 \
   --tmpfs /scratch:rw,size=4g,mode=1777 \
   -v "$project/.local/open-engine/source:/source:ro,z" --workdir=/scratch \
-  --entrypoint=/usr/bin/env 43f51138b1cd8113a36a0a38d89243debb9da1dc64dff2d3f10e945f15eab0bd -i \
+  --entrypoint=/usr/bin/env docker.io/library/gcc@sha256:dc99c5016a0fb74d4e9a392e7892966ec7f358af744799bd3479239598f79d45 -i \
   PATH=/usr/local/bin:/usr/bin:/bin HOME=/scratch/home TMPDIR=/scratch/tmp LANG=C.UTF-8 \
   /bin/sh -c 'set -eu
 mkdir -p /scratch/home /scratch/tmp

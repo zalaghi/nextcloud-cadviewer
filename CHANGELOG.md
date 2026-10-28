@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.4 — 2026-10-28
+
+- Bundle the nine original Vazirmatn 33.003 TrueType weights and Liberation Sans Regular 2.1.5 with OFL notices, provenance and SHA-256 verification.
+- Remove the worker build dependency on fonts installed on the build host; private CAD font packs stay outside published images.
+- Make staged font directories readable by the isolated parser even with a restrictive service-account umask; keep their host parent and token private.
+- Add deterministic app packaging, safe initialization of a dedicated worker account directory and a systemd user-service template.
+- Document complete manual installation for Nextcloud AIO and regular Nextcloud, private font imports, upgrades and rollback.
+- Resolve the pinned compiler by its registry digest instead of a machine-local image ID.
+
 ## 0.1.0-alpha.3 — 2026-10-28
 
 - Recover Windows-1252 byte glyphs and decimal `%%nnn` references only for verified old 8-bit SHX formats with the requested glyph present; preserve Unicode fonts and unknown glyphs.

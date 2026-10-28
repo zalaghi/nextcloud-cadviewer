@@ -88,10 +88,15 @@ def stage_fonts(source, destination, manifest):
         contents[font.get('staged_file', font['file'])] = data
         contents[font['lowercase_alias']] = data
     destination.mkdir(parents=True, exist_ok=True)
+    # Keep the collection under a private host parent. The mounted directory
+    # and font files must be readable by the parser's unprivileged mapped UID.
+    destination.chmod(0o755)
     for name, data in contents.items():
         with (destination / name).open('xb') as stream:
             stream.write(data)
+        (destination / name).chmod(0o644)
     (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    (destination / 'manifest.json').chmod(0o600)
 
 
 def main():

@@ -1,1 +1,5 @@
-* text=auto
+# Preserve original licensed files byte-for-byte for the checksum manifest.
+fonts/**/*.ttf binary
+fonts/liberation/LICENSE -text -whitespace
+fonts/vazirmatn/OFL.txt -text -whitespace
+fonts/vazirmatn/AUTHORS.txt -text -whitespace
